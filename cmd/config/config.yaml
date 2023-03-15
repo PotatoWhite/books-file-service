@@ -1,0 +1,11 @@
+database:
+  host: localhost
+  port: 5432
+  username: fileaccount
+  password: 1234
+  dbname: file_service
+  sslmode: disable
+
+server:
+  port: 8080
+  host: localhost

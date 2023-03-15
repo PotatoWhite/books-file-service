@@ -1,0 +1,37 @@
+type Query {
+    rootFolder(userId: ID!): Folder!
+    folder(userId:String!, id: ID!): Folder!
+    file(userId:String!, id: ID!): File!
+    childrenFolders(userId: ID!, id: ID!): [Folder!]!
+    childrenFiles(userId: ID!, id: ID!): [File!]!
+}
+
+type Mutation {
+    createRootFolder(userId: ID!): Folder!
+    createFolder(userId: ID!, name: String!, parentId: ID!): Folder!
+    renameFolder(userId: ID!, id: ID!, name: String!): Folder!
+    deleteFolder(userId: ID!, id: ID!): Boolean!
+    createFile(userId: ID!, name: String!, folderId: ID!, type: String!, extension: String!, size: Int!): File!
+    updateFile(userId: ID!, id: ID!, name: String, type: String, extension: String, size: Int): File!
+    deleteFile(userId: ID!, id: ID!): Boolean!
+}
+
+type Folder {
+    id: ID!
+    name: String!
+    parentId: ID
+    path: String
+    userId: ID!
+}
+
+type File {
+    id: ID!
+    name: String!
+    folderId: ID!
+    type: String
+    extension: String
+    size: Int
+    modified: String
+    path: String
+    userId: ID!
+}
