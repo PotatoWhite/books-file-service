@@ -32,7 +32,7 @@ func (r *mutationResolver) DeleteFolder(ctx context.Context, userID string, id s
 }
 
 // CreateFile is the resolver for the createFile field.
-func (r *mutationResolver) CreateFile(ctx context.Context, userID string, name string, folderID string, typeArg string, extension string, size int) (*model.File, error) {
+func (r *mutationResolver) CreateFile(ctx context.Context, userID string, name string, folderID string) (*model.File, error) {
 	panic(fmt.Errorf("not implemented: CreateFile - createFile"))
 }
 

@@ -66,7 +66,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateFile       func(childComplexity int, userID string, name string, folderID string, typeArg string, extension string, size int) int
+		CreateFile       func(childComplexity int, userID string, name string, folderID string) int
 		CreateFolder     func(childComplexity int, userID string, name string, parentID string) int
 		CreateRootFolder func(childComplexity int, userID string) int
 		DeleteFile       func(childComplexity int, userID string, id string) int
@@ -89,7 +89,7 @@ type MutationResolver interface {
 	CreateFolder(ctx context.Context, userID string, name string, parentID string) (*model.Folder, error)
 	RenameFolder(ctx context.Context, userID string, id string, name string) (*model.Folder, error)
 	DeleteFolder(ctx context.Context, userID string, id string) (bool, error)
-	CreateFile(ctx context.Context, userID string, name string, folderID string, typeArg string, extension string, size int) (*model.File, error)
+	CreateFile(ctx context.Context, userID string, name string, folderID string) (*model.File, error)
 	UpdateFile(ctx context.Context, userID string, id string, name *string, typeArg *string, extension *string, size *int) (*model.File, error)
 	DeleteFile(ctx context.Context, userID string, id string) (bool, error)
 }
@@ -224,7 +224,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateFile(childComplexity, args["userId"].(string), args["name"].(string), args["folderId"].(string), args["type"].(string), args["extension"].(string), args["size"].(int)), true
+		return e.complexity.Mutation.CreateFile(childComplexity, args["userId"].(string), args["name"].(string), args["folderId"].(string)), true
 
 	case "Mutation.createFolder":
 		if e.complexity.Mutation.CreateFolder == nil {
@@ -474,33 +474,6 @@ func (ec *executionContext) field_Mutation_createFile_args(ctx context.Context, 
 		}
 	}
 	args["folderId"] = arg2
-	var arg3 string
-	if tmp, ok := rawArgs["type"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-		arg3, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["type"] = arg3
-	var arg4 string
-	if tmp, ok := rawArgs["extension"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("extension"))
-		arg4, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["extension"] = arg4
-	var arg5 int
-	if tmp, ok := rawArgs["size"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("size"))
-		arg5, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["size"] = arg5
 	return args, nil
 }
 
@@ -1722,7 +1695,7 @@ func (ec *executionContext) _Mutation_createFile(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateFile(rctx, fc.Args["userId"].(string), fc.Args["name"].(string), fc.Args["folderId"].(string), fc.Args["type"].(string), fc.Args["extension"].(string), fc.Args["size"].(int))
+		return ec.resolvers.Mutation().CreateFile(rctx, fc.Args["userId"].(string), fc.Args["name"].(string), fc.Args["folderId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4999,21 +4972,6 @@ func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface
 
 func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	res := graphql.MarshalID(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-	}
-	return res
-}
-
-func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
-	res, err := graphql.UnmarshalInt(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
-	res := graphql.MarshalInt(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")

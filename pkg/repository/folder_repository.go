@@ -4,12 +4,6 @@ import (
 	"fmt"
 	"github.com/potatowhite/books/file-service/pkg/repository/entity"
 	"gorm.io/gorm"
-	"log"
-	"os"
-)
-
-var (
-	logger = log.New(os.Stdout, "file-service: ", log.LstdFlags|log.Lshortfile)
 )
 
 func NewFolderRepository(db *gorm.DB) FolderRepository {
@@ -116,7 +110,7 @@ func (f *folderRepository) GetPathCTE(folder *entity.Folder) string {
 func (f *folderRepository) CreateRootFolder(userId uint) (*entity.Folder, error) {
 	rootFolder := entity.Folder{
 		Name:   "",
-		UserId: &userId,
+		UserId: userId,
 	}
 
 	err := f.db.Create(&rootFolder).Error
@@ -133,7 +127,7 @@ func (f *folderRepository) CreateFolder(userId uint, name string, parentId uint)
 	folder := entity.Folder{
 		Name:     name,
 		ParentId: &parentId,
-		UserId:   &userId,
+		UserId:   userId,
 	}
 
 	err := f.db.Create(&folder).Error

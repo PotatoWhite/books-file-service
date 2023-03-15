@@ -11,7 +11,7 @@ type Mutation {
     createFolder(userId: ID!, name: String!, parentId: ID!): Folder!
     renameFolder(userId: ID!, id: ID!, name: String!): Folder!
     deleteFolder(userId: ID!, id: ID!): Boolean!
-    createFile(userId: ID!, name: String!, folderId: ID!, type: String!, extension: String!, size: Int!): File!
+    createFile(userId: ID!, name: String!, folderId: ID!): File!
     updateFile(userId: ID!, id: ID!, name: String, type: String, extension: String, size: Int): File!
     deleteFile(userId: ID!, id: ID!): Boolean!
 }

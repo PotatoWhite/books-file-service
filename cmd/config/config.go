@@ -26,6 +26,14 @@ type Config struct {
 	Server   Server
 }
 
+func MustLoad() *Config {
+	config, err := Load()
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
 func Load() (*Config, error) {
 	// viper
 	viper.AutomaticEnv()

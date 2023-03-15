@@ -10,7 +10,7 @@ type Folder struct {
 	Name     string  `json:"name" gorm:"not null"`
 	ParentId *uint   `json:"parentId" gorm:"index"`
 	Parent   *Folder `json:"parent,omitempty"`
-	UserId   *uint   `json:"userId" gorm:"not null;index"`
+	UserId   uint    `json:"userId" gorm:"not null;index"`
 	Path     string  `json:"path" gorm:"-"`
 }
 
@@ -22,8 +22,8 @@ type File struct {
 	Folder    *Folder `json:"folder"`
 	Type      string  `json:"type"`
 	Extension string  `json:"extension"`
-	Size      int     `json:"size"`
+	Size      uint64  `json:"size"`
 	Modified  string  `json:"modified"`
-	UserId    *uint   `json:"userId" gorm:"not null;index"`
+	UserId    uint    `json:"userId" gorm:"not null;index"`
 	Path      string  `json:"path" gorm:"-"`
 }

@@ -12,21 +12,22 @@ func ToFolderDto(folder *entity.Folder) *model.Folder {
 		ID:       *UItoAOrNil(&folder.ID),
 		Name:     folder.Name,
 		ParentID: parentID,
-		UserID:   *UItoAOrNil(folder.UserId),
+		UserID:   *UItoAOrNil(&folder.UserId),
 		Path:     &folder.Path,
 	}
 }
 
 func ToFileDto(file *entity.File) *model.File {
+	sizeInt := int(file.Size)
 	return &model.File{
 		ID:        *UItoAOrNil(&file.ID),
 		Name:      file.Name,
 		FolderID:  *UItoAOrNil(&file.FolderId),
 		Type:      &file.Type,
 		Extension: &file.Extension,
-		Size:      &file.Size,
+		Size:      &sizeInt,
 		Modified:  &file.Modified,
-		UserID:    *UItoAOrNil(file.UserId),
+		UserID:    *UItoAOrNil(&file.UserId),
 		Path:      &file.Path,
 	}
 }

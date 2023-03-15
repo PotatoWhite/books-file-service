@@ -27,6 +27,16 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	return db, nil
 }
 
+func CloseDB(database *gorm.DB) {
+	func(con *gorm.DB) {
+		sqlDB, err := con.DB()
+		if err != nil {
+			log.Fatal(err)
+		}
+		sqlDB.Close()
+	}(database)
+}
+
 func autoMigration(err error, db *gorm.DB) error {
 	db.Migrator().DropTable(&entity.Folder{}, &entity.File{})
 	err = db.AutoMigrate(&entity.Folder{}, &entity.File{})

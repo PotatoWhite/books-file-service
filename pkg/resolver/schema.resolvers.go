@@ -6,7 +6,6 @@ package resolver
 
 import (
 	"context"
-	"fmt"
 	"github.com/potatowhite/books/file-service/graph"
 	"github.com/potatowhite/books/file-service/graph/model"
 	"github.com/potatowhite/books/file-service/pkg/util"
@@ -79,18 +78,43 @@ func (r *mutationResolver) DeleteFolder(ctx context.Context, userID string, id s
 }
 
 // CreateFile is the resolver for the createFile field.
-func (r *mutationResolver) CreateFile(ctx context.Context, userID string, name string, folderID string, typeArg string, extension string, size int) (*model.File, error) {
-	panic(fmt.Errorf("not implemented: CreateFile - createFile"))
+func (r *mutationResolver) CreateFile(ctx context.Context, userID string, name string, folderID string) (*model.File, error) {
+	userIDInt := *util.AtoUIOrNil(&userID)
+	folderIDInt := *util.AtoUIOrNil(&folderID)
+
+	file, err := r.FileSvc.CreateFile(userIDInt, name, folderIDInt)
+	if err != nil {
+		return nil, err
+	}
+
+	return util.ToFileDto(file), nil
 }
 
 // UpdateFile is the resolver for the updateFile field.
 func (r *mutationResolver) UpdateFile(ctx context.Context, userID string, id string, name *string, typeArg *string, extension *string, size *int) (*model.File, error) {
-	panic(fmt.Errorf("not implemented: UpdateFile - updateFile"))
+	userIDInt := *util.AtoUIOrNil(&userID)
+	idInt := *util.AtoUIOrNil(&id)
+
+	sizeUInt := uint64(*size)
+	file, err := r.FileSvc.PatchFile(userIDInt, idInt, name, typeArg, extension, &sizeUInt)
+	if err != nil {
+		return nil, err
+	}
+
+	return util.ToFileDto(file), nil
 }
 
 // DeleteFile is the resolver for the deleteFile field.
 func (r *mutationResolver) DeleteFile(ctx context.Context, userID string, id string) (bool, error) {
-	panic(fmt.Errorf("not implemented: DeleteFile - deleteFile"))
+	userIDInt := *util.AtoUIOrNil(&userID)
+	idInt := *util.AtoUIOrNil(&id)
+
+	_, err := r.FileSvc.DeleteFile(userIDInt, idInt)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // RootFolder is the resolver for the rootFolder field.
@@ -124,7 +148,21 @@ func (r *queryResolver) ChildrenFolders(ctx context.Context, userID string, id s
 
 // ChildrenFiles is the resolver for the childrenFiles field.
 func (r *queryResolver) ChildrenFiles(ctx context.Context, userID string, id string) ([]*model.File, error) {
-	panic(fmt.Errorf("not implemented: ChildrenFiles - childrenFiles"))
+	userIDInt := *util.AtoUIOrNil(&userID)
+	folderIDInt := *util.AtoUIOrNil(&id)
+
+	files, err := r.FileSvc.GetChildren(userIDInt, folderIDInt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to DTO
+	filesDto := make([]*model.File, len(files))
+	for i, file := range files {
+		filesDto[i] = util.ToFileDto(file)
+	}
+
+	return filesDto, nil
 }
 
 // Folder is the resolver for the folder field.
@@ -139,5 +177,10 @@ func (r *queryResolver) Folder(ctx context.Context, userID string, id string) (*
 
 // File is the resolver for the file field.
 func (r *queryResolver) File(ctx context.Context, userID string, id string) (*model.File, error) {
-	panic(fmt.Errorf("not implemented: File - file"))
+	file, err := r.FileSvc.GetFile(*util.AtoUIOrNil(&userID), *util.AtoUIOrNil(&id))
+	if err != nil {
+		return nil, err
+	}
+
+	return util.ToFileDto(file), nil
 }
