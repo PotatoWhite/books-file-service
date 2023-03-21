@@ -37,6 +37,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Folder() FolderResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 }
@@ -84,6 +85,9 @@ type ComplexityRoot struct {
 	}
 }
 
+type FolderResolver interface {
+	Path(ctx context.Context, obj *model.Folder) (*string, error)
+}
 type MutationResolver interface {
 	CreateRootFolder(ctx context.Context, userID string) (*model.Folder, error)
 	CreateFolder(ctx context.Context, userID string, name string, parentID string) (*model.Folder, error)
@@ -1354,7 +1358,7 @@ func (ec *executionContext) _Folder_path(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Path, nil
+		return ec.resolvers.Folder().Path(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1372,8 +1376,8 @@ func (ec *executionContext) fieldContext_Folder_path(ctx context.Context, field 
 	fc = &graphql.FieldContext{
 		Object:     "Folder",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -4231,29 +4235,42 @@ func (ec *executionContext) _Folder(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Folder_id(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "name":
 
 			out.Values[i] = ec._Folder_name(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "parentId":
 
 			out.Values[i] = ec._Folder_parentId(ctx, field, obj)
 
 		case "path":
+			field := field
 
-			out.Values[i] = ec._Folder_path(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Folder_path(ctx, field, obj)
+				return res
+			}
 
+			out.Concurrently(i, func() graphql.Marshaler {
+				return innerFunc(ctx)
+
+			})
 		case "userId":
 
 			out.Values[i] = ec._Folder_userId(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))

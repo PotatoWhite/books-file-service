@@ -184,3 +184,16 @@ func (r *queryResolver) File(ctx context.Context, userID string, id string) (*mo
 
 	return util.ToFileDto(file), nil
 }
+
+type folderResolver struct{ *Resolver }
+
+// Folder returns FolderResolver implementation.
+func (r *Resolver) Folder() graph.FolderResolver { return &folderResolver{r} }
+
+// Path is the resolver for the path field.
+func (r *folderResolver) Path(ctx context.Context, obj *model.Folder) (*string, error) {
+	userIdInt := *util.AtoUIOrNil(&obj.UserID)
+	folderId := *util.AtoUIOrNil(&obj.ID)
+
+	return r.FolderSvc.GetPathOrNil(userIdInt, folderId)
+}

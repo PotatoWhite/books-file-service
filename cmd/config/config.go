@@ -24,6 +24,18 @@ type Server struct {
 type Config struct {
 	Database Database
 	Server   Server
+	Policy   Policy
+}
+
+type Policy struct {
+	Users KafkaConfig
+}
+
+type KafkaConfig struct {
+	Topic            string
+	BootStrapServers string
+	GroupId          string
+	Timeout          int
 }
 
 func MustLoad() *Config {

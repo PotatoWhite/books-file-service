@@ -1,3 +1,4 @@
+
 type Query {
     rootFolder(userId: ID!): Folder!
     folder(userId:String!, id: ID!): Folder!

@@ -22,10 +22,20 @@ type FolderService interface {
 	GetChildren(userId uint, parentID uint) ([]*entity.Folder, error)
 	CreateRootFolder(userId uint) (*entity.Folder, error)
 	GetRootFolder(userId uint) (*entity.Folder, error)
+	GetPathOrNil(userId uint, id uint) (*string, error)
+	DeleteAllFolders(userId uint) (int64, error)
 }
 
 type folderService struct {
 	repo repository.FolderRepository
+}
+
+func (f *folderService) DeleteAllFolders(userId uint) (int64, error) {
+	return f.repo.DeleteAllFolders(userId)
+}
+
+func (f *folderService) GetPathOrNil(userId uint, id uint) (*string, error) {
+	return f.repo.GetPathOrNil(userId, id)
 }
 
 func (f *folderService) GetRootFolder(userId uint) (*entity.Folder, error) {
@@ -48,15 +58,15 @@ func (f *folderService) RenameFolder(userId uint, id uint, newName string) (*ent
 }
 
 func (f *folderService) CreateRootFolder(userId uint) (*entity.Folder, error) {
-	// must not exist a root folder for the user
+	// must not exist a root folder for the users
 	folder, err := f.repo.GetRootFolder(userId)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 
 	if folder != nil {
-		logger.Printf("Root folder already exists for user %v", userId)
-		return nil, fmt.Errorf("root folder already exists for user %v", userId)
+		logger.Printf("Root folder already exists for users %v", userId)
+		return nil, fmt.Errorf("root folder already exists for users %v", userId)
 	}
 
 	return f.repo.CreateRootFolder(userId)
@@ -71,7 +81,7 @@ func (f *folderService) GetChildren(userId uint, parentID uint) ([]*entity.Folde
 }
 
 func (f *folderService) CreateFolder(userId uint, name string, parentId uint) (*entity.Folder, error) {
-	// must not exist a folder with the same name for the user
+	// must not exist a folder with the same name for the users
 	folder, err := f.repo.GetFolder(userId, parentId)
 	if err != nil {
 		return nil, err
@@ -88,7 +98,7 @@ func (f *folderService) CreateFolder(userId uint, name string, parentId uint) (*
 	return nil, fmt.Errorf("folder with name %v already exists", name)
 }
 
-func (f folderService) DeleteFolder(userId uint, id uint) (bool, error) {
+func (f *folderService) DeleteFolder(userId uint, id uint) (bool, error) {
 	return f.repo.DeleteFolder(userId, id)
 }
 

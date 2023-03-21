@@ -9,3 +9,10 @@ database:
 server:
   port: 8080
   host: localhost
+
+policy:
+  users:
+    bootstrapServers: localhost:9092
+    topic: users
+    groupID: file_service
+    timeout: 1
