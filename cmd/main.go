@@ -6,7 +6,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/potatowhite/books/file-service/cmd/config"
+	"github.com/potatowhite/books/file-service/config"
 	"github.com/potatowhite/books/file-service/consumer"
 	"github.com/potatowhite/books/file-service/db"
 	"github.com/potatowhite/books/file-service/graph"
@@ -18,9 +18,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"regexp"
-	"syscall"
 )
 
 var (
@@ -28,9 +26,17 @@ var (
 )
 
 func main() {
+
+	// port from args
+	port := os.Args[1]
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
+	}
+
+	if port != "" {
+		cfg.Server.Port = port
 	}
 
 	database, err := db.InitDB(cfg)
@@ -42,20 +48,16 @@ func main() {
 
 	folderRepo, fileRepo := initRepository(database)
 	folderSvc, fileSvc := initService(folderRepo, fileRepo)
-	server := initGraphqlServer(folderSvc, fileSvc)
-	userConsumer, err := initConsumer(cfg, fileSvc, folderSvc)
-	if err != nil {
-		log.Fatalf("failed to create users: %v", err)
-	}
 
-	userConsumer.Run()
+	userConsumer, err := initUserConsumer(cfg, fileSvc, folderSvc)
 	defer userConsumer.Close()
 
+	server := initGraphqlServer(folderSvc, fileSvc)
 	startServer(server, cfg.Server.Port)
 
 }
 
-func initConsumer(cfg *config.Config, fileSvc service.FileService, folderSvc service.FolderService) (consumer.Consumer, error) {
+func initUserConsumer(cfg *config.Config, fileSvc service.FileService, folderSvc service.FolderService) (consumer.Consumer, error) {
 	userConsumer, err := consumer.NewConsumer(cfg.Policy.Users.BootStrapServers, cfg.Policy.Users.GroupId, &users.UserEventHandler{
 		FileSvc:   fileSvc,
 		FolderSvc: folderSvc,
@@ -67,13 +69,7 @@ func initConsumer(cfg *config.Config, fileSvc service.FileService, folderSvc ser
 		}
 	}()
 
-	// Listen for a SIGINT or SIGTERM signal and close the consumer when received
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	<-signals
-
 	return userConsumer, err
-
 }
 
 func initRepository(db *gorm.DB) (folderRepo repository.FolderRepository, fileRepo repository.FileRepository) {

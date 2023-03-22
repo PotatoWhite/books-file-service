@@ -4,7 +4,12 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/potatowhite/books/file-service/handler"
 	"log"
+	"os"
 	"sync"
+)
+
+var (
+	logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 )
 
 type Consumer interface {
@@ -15,92 +20,85 @@ type Consumer interface {
 type kafkaConsumer struct {
 	consumer   *kafka.Consumer
 	handler    handler.Handler
-	workerPool []*worker
+	workerPool map[int32]*worker
 	wg         sync.WaitGroup
 }
 
 func (c *kafkaConsumer) Close() {
+	logger.Println("Closing Kafka consumer")
+
+	// unasign partitions
+	c.consumer.Unassign()
+
 	c.consumer.Close()
 }
 
 func NewConsumer(bootstrapServers string, groupId string, handler handler.Handler) (Consumer, error) {
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": bootstrapServers,
-		"group.id":          groupId,
-		"auto.offset.reset": "earliest",
+		"bootstrap.servers":               bootstrapServers,
+		"group.id":                        groupId,
+		"auto.offset.reset":               "earliest",
+		"go.application.rebalance.enable": true,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	if err := consumer.Subscribe(handler.Topic(), nil); err != nil {
-		return nil, err
-	}
-
-	// wait for assignment
-	for {
-
-		ev := consumer.Poll(10000)
-		if ev == nil {
-			continue
-		}
-
-		switch e := ev.(type) {
-		case kafka.AssignedPartitions:
-			consumer.Assign(e.Partitions)
-			log.Printf("Assigned partitions: %v", e.Partitions)
-			break
-		case kafka.RevokedPartitions:
-			consumer.Unassign()
-			log.Printf("Revoked partitions: %v", e.Partitions)
-			break
-		case kafka.Error:
-			log.Printf("Error: %v", e)
-			break
-		default:
-			log.Printf("Ignored event: %s", e)
-			break
-		}
-
-		break
-	}
-
-	partitions, err := consumer.Assignment()
-	if err != nil {
-		return nil, err
-	}
-
-	workerPool := make([]*worker, len(partitions))
-	for i := range workerPool {
-		workerPool[i] = newWorker(i, handler)
-	}
-
-	return &kafkaConsumer{
+	_kafkaConsumer := &kafkaConsumer{
 		consumer:   consumer,
 		handler:    handler,
-		workerPool: workerPool,
-	}, nil
+		workerPool: make(map[int32]*worker),
+	}
+
+	if err := consumer.Subscribe(handler.Topic(), rebalanceCb(_kafkaConsumer)); err != nil {
+		return nil, err
+	}
+
+	return _kafkaConsumer, nil
+}
+
+func rebalanceCb(svcConsumer *kafkaConsumer) kafka.RebalanceCb {
+	logger.Println("Kafka consumer rebalance callback")
+
+	return func(c *kafka.Consumer, e kafka.Event) error {
+		switch ev := e.(type) {
+		case kafka.AssignedPartitions:
+			svcConsumer.wg.Add(1)
+			// make workers for each partition
+			for _, partition := range ev.Partitions {
+				worker := newWorker(int(partition.Partition), svcConsumer.handler)
+				worker.start(&svcConsumer.wg)
+				svcConsumer.workerPool[partition.Partition] = worker
+			}
+
+			c.Assign(ev.Partitions)
+			logger.Printf("Kafka consumer assigned partitions: %v", ev.Partitions)
+			svcConsumer.wg.Done()
+		case kafka.RevokedPartitions:
+			c.Unassign()
+			log.Printf("Kafka consumer revoked partitions: %v", ev.Partitions)
+
+			svcConsumer.wg.Add(1)
+			// stop and remove worker for each partition
+			for _, partition := range ev.Partitions {
+				worker := svcConsumer.workerPool[partition.Partition]
+				if worker != nil {
+					worker.stop()
+					delete(svcConsumer.workerPool, partition.Partition)
+				}
+			}
+
+			svcConsumer.wg.Done()
+		}
+
+		return nil
+	}
 }
 
 func (c *kafkaConsumer) Run() error {
-	// Initialize the worker pool for each partition
-	partitions, err := c.consumer.Assignment()
-	if err != nil {
-		return err
-	}
-
-	c.workerPool = make([]*worker, len(partitions))
-	for i := range c.workerPool {
-		c.workerPool[i] = newWorker(i, c.handler)
-	}
-
-	// Start the worker goroutines
-	for _, w := range c.workerPool {
-		w.start(&c.wg)
-	}
 
 	for {
-		ev := c.consumer.Poll(0)
+		ev := c.consumer.Poll(100)
 		if ev == nil {
 			continue
 		}
@@ -112,8 +110,16 @@ func (c *kafkaConsumer) Run() error {
 				partition := e.TopicPartition.Partition
 				worker := c.workerPool[partition]
 
-				// Send the message to the worker's message queue
-				worker.messages <- e
+				if worker != nil {
+					worker.messages <- e
+					continue
+				}
+
+				logger.Printf("no worker found for partition %d", partition)
+
+				// nack message
+				c.consumer.CommitMessage(e)
+
 			}
 		case kafka.PartitionEOF:
 			continue
@@ -121,80 +127,32 @@ func (c *kafkaConsumer) Run() error {
 			log.Printf("Consumer error: %v (%v)", e, e.Code())
 			if e.Code() == kafka.ErrAllBrokersDown {
 				c.shutdownWorkers()
+				return e
 			}
-		case kafka.AssignedPartitions:
-			// Update the worker pool for the new set of partitions
-			c.handleRebalance(e.Partitions)
-		case kafka.RevokedPartitions:
-			// Stop all worker goroutines for the old set of partitions
-			c.stopWorkers()
+		default:
+			log.Printf("Ignored event: %s", e)
 		}
-	}
-}
-
-func (c *kafkaConsumer) handleRebalance(partitions []kafka.TopicPartition) {
-	// Stop all worker goroutines for the old set of partitions
-	c.stopWorkers()
-
-	// Initialize the worker pool for the new set of partitions
-	c.workerPool = make([]*worker, len(partitions))
-	for i := range c.workerPool {
-		c.workerPool[i] = newWorker(i, c.handler)
-	}
-
-	// Start the worker goroutines
-	for _, w := range c.workerPool {
-		w.start(&c.wg)
 	}
 }
 
 func (c *kafkaConsumer) stopWorkers() {
 	for _, w := range c.workerPool {
 		w.stop()
-	}
-	for _, w := range c.workerPool {
 		<-w.done
-	}
-	c.wg.Wait()
-}
-
-type worker struct {
-	id       int
-	handler  handler.Handler
-	messages chan *kafka.Message
-	done     chan bool
-}
-
-func (w *worker) start(wg *sync.WaitGroup) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for msg := range w.messages {
-			if err := w.handler.HandleMessage(msg); err != nil {
-				log.Printf("failed to handle message: %v", err)
-			}
-		}
-		w.done <- true
-	}()
-}
-
-func (w *worker) stop() {
-	close(w.messages)
-}
-
-func newWorker(id int, handler handler.Handler) *worker {
-	return &worker{
-		id:       id,
-		handler:  handler,
-		messages: make(chan *kafka.Message),
-		done:     make(chan bool),
 	}
 }
 
 func (c *kafkaConsumer) shutdownWorkers() {
 	log.Println("Shutting down workers...")
-	for _, worker := range c.workerPool {
-		worker.stop()
-	}
+
+	// close all workers which are still running
+	c.stopWorkers()
+
+	// unassign partitions
+	c.consumer.Unassign()
+
+	// wait for all workers to finish
+	c.wg.Wait()
+
 	log.Println("Workers shut down.")
 }

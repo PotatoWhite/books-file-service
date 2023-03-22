@@ -11,7 +11,7 @@ import (
 
 var (
 	// logger with thread id
-	logger = log.New(os.Stdout, "worker #"+strconv.Itoa(os.Getpid())+" ", log.LstdFlags|log.Lshortfile)
+	logger = log.New(os.Stdout, "handler", log.LstdFlags|log.Lshortfile)
 )
 
 type UserEventHandler struct {

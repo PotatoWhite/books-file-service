@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"github.com/potatowhite/books/file-service/cmd/config"
+	"github.com/potatowhite/books/file-service/config"
 	"github.com/potatowhite/books/file-service/pkg/repository/entity"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
