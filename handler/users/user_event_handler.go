@@ -93,7 +93,11 @@ func (h *UserEventHandler) deleteAllFolders(userID string) error {
 		return err
 	}
 
-	h.FolderSvc.DeleteAllFolders(uint(userIDInt))
+	_, err = h.FolderSvc.DeleteAllFolders(uint(userIDInt))
+	if err != nil {
+		return err
+
+	}
 	logger.Printf("Deleted all folders for users %s\n", userID)
 
 	return nil
@@ -107,8 +111,7 @@ func (h *UserEventHandler) deleteAllFiles(userID string) error {
 		logger.Printf("Failed to convert userID to uint64: %v", err)
 	}
 
-	h.FileSvc.DeleteAllFiles(uint(userIDInt))
-	if err != nil {
+	if _, err = h.FileSvc.DeleteAllFiles(uint(userIDInt)); err != nil {
 		return err
 	}
 
