@@ -17,10 +17,17 @@ type FileService interface {
 	GetFile(userId uint, id uint) (*entity.File, error)
 	GetChildren(userId uint, folderId uint) ([]*entity.File, error)
 	DeleteFile(userId uint, id uint) (bool, error)
+
+	DeleteAllFiles(userId uint) (int64, error)
 }
 
 type fileService struct {
 	repo repository.FileRepository
+}
+
+func (f *fileService) DeleteAllFiles(userId uint) (int64, error) {
+
+	return f.repo.DeleteAllFiles(userId)
 }
 
 func (f *fileService) DeleteFile(userId uint, id uint) (bool, error) {

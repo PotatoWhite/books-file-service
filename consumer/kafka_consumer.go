@@ -29,7 +29,6 @@ func (c *kafkaConsumer) Close() {
 
 	// unasign partitions
 	c.consumer.Unassign()
-
 	c.consumer.Close()
 }
 

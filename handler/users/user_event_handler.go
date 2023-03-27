@@ -84,11 +84,34 @@ func (h *UserEventHandler) createRootFolder(userID string) error {
 }
 
 func (h *UserEventHandler) deleteAllFolders(userID string) error {
+	// remove all folders for users
 	logger.Printf("Deleting all folders for users %s\n", userID)
+
+	userIDInt, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		logger.Printf("Failed to convert userID to uint64: %v", err)
+		return err
+	}
+
+	h.FolderSvc.DeleteAllFolders(uint(userIDInt))
+	logger.Printf("Deleted all folders for users %s\n", userID)
+
 	return nil
 }
 
 func (h *UserEventHandler) deleteAllFiles(userID string) error {
 	logger.Printf("Deleting all files for users %s\n", userID)
+
+	userIDInt, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		logger.Printf("Failed to convert userID to uint64: %v", err)
+	}
+
+	h.FileSvc.DeleteAllFiles(uint(userIDInt))
+	if err != nil {
+		return err
+	}
+
+	logger.Printf("Deleted all files for users %s\n", userID)
 	return nil
 }

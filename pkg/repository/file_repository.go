@@ -22,9 +22,24 @@ type FileRepository interface {
 	GetFile(userId uint, id uint) (*entity.File, error)
 	GetFileByNameAndFolderId(userId uint, name string, folderId uint) (*entity.File, error)
 	GetFilesByFolderId(userId uint, folderId uint) ([]*entity.File, error)
+	DeleteAllFiles(userId uint) (int64, error)
 }
 type fileRepository struct {
 	db *gorm.DB
+}
+
+func (f *fileRepository) DeleteAllFiles(userId uint) (int64, error) {
+	tx := f.db.Where("user_id = ?", userId).Delete(&entity.File{})
+
+	if tx.Error != nil {
+		return -1, tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return -1, nil
+	}
+
+	return tx.RowsAffected, nil
 }
 
 func (f *fileRepository) CreateFile(userId uint, name string, folderId uint) (*entity.File, error) {
